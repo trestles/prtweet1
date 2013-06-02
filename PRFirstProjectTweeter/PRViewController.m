@@ -11,7 +11,14 @@
 
 @interface PRViewController ()
   -(void)reloadTweets;
-  @property (nonatomic, strong) IBOutlet UIWebView *twitterWebView;
+  //@property (nonatomic, strong) IBOutlet UIWebView *twitterWebView;
+  -(void)handleTwitterData: (NSData *) data
+                          urlResponse: (NSHTTPURLResponse *) urlResponse
+                          error: (NSError *) error;
+
+
+
+  @property (nonatomic, strong) IBOutlet UITextView *twitterTextView;
 @end
 
 @implementation PRViewController
@@ -51,8 +58,40 @@
 }
 
 -(void)reloadTweets{
+  NSURL *twitterAPIURL = [NSURL URLWithString:@"http://api.twitter.com/1/statuses/user_timeline.json"];
+  NSDictionary *twitterParams = @{ @"screen_name": @"foodiememe",  };
+  
+  SLRequest *request = [SLRequest requestForServiceType:SLServiceTypeTwitter requestMethod:SLRequestMethodGET URL:twitterAPIURL parameters:twitterParams];
+  
+  [request performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
+    [self handleTwitterData:responseData urlResponse:urlResponse error:error];
+  }];
+
+/*
   [self.twitterWebView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://www.twitter.com/foodiememe"]]];
+*/
   NSLog(@"about to show my tweets");
+}
+
+-(void) handleTwitterData:(NSData *)data urlResponse:(NSHTTPURLResponse *)urlResponse error:(NSError *)error{
+  NSError *jsonError = nil;
+  NSJSONSerialization *jsonResponse = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+  NSLog(@"jsonResponse: %@", jsonResponse);
+  NSLog(@"here is your call back");
+  if(!jsonError && [jsonResponse isKindOfClass:[NSArray class]]){
+    dispatch_async(dispatch_get_main_queue(), ^{
+      NSArray *tweets = (NSArray *) jsonResponse;
+      for (NSDictionary *tweetDict in tweets){
+        NSString *tweetText = [NSString stringWithFormat:@"%@ (%@)",
+           [tweetDict valueForKey:@"text"],
+           [tweetDict valueForKey:@"created_at"]
+         ];
+        self.twitterTextView.text = [NSString stringWithFormat:@"%@%@\n\n", self.twitterTextView.text, tweetText];
+      }
+    
+    });
+  
+  }
 }
 
 @end
